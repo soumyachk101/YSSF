@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand Color Palette */
+  --color-primary-900: #0B5D3B;
+  --color-primary-800: #0e7249;
+  --color-primary-700: #128757;
+  --color-primary-600: #179c65;
+  --color-primary-400: #8FD694;
+  --color-primary-200: #c1ebd3;
+  --color-accent-500: #F4B400;
+  --color-accent-600: #d69e00;
+  --color-surface-100: #DFF7E2;
+  --color-surface-200: #c5edd9;
+  
+  /* Semantic Alert Colors */
+  --color-alert-500: #D64545;
+  --color-warning-500: #F57C00;
+  
+  /* Font Family Mappings */
+  --font-handwritten: var(--font-gochi-hand), cursive;
+  --font-display: var(--font-patrick-hand), sans-serif;
+  --font-heading: var(--font-poppins), sans-serif;
+  --font-sans: var(--font-nunito), sans-serif;
+
+  /* Soft Organic Shadows */
+  --shadow-soft: 0 10px 30px -5px rgba(11, 93, 59, 0.08), 0 4px 12px -2px rgba(11, 93, 59, 0.03);
+  --shadow-soft-lg: 0 20px 40px -10px rgba(11, 93, 59, 0.12), 0 8px 16px -4px rgba(11, 93, 59, 0.06);
+}
+
+:root {
+  --background: #FFFFFF;
+  --foreground: #1E2E27; /* Soft dark forest for readable body text */
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Custom organic handmade utility classes */
+.handwritten-highlight {
+  position: relative;
+  display: inline-block;
+}
+
+.handwritten-highlight::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 6px;
+  background-color: var(--color-accent-500);
+  opacity: 0.7;
+  border-radius: 50% 20% 50% 20%;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+}
+
+/* Custom card elements with soft borders */
+.yssf-card {
+  background: #FFFFFF;
+  border: 2px solid #E3ECE8;
+  border-radius: 1.5rem; /* rounded-3xl (24px) */
+  box-shadow: var(--shadow-soft);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.yssf-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-soft-lg);
+  border-color: var(--color-primary-400);
+}
+
+/* Rough borders to mimic organic/handmade feel */
+.organic-border {
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+}
+
+/* Custom focus rings for React Aria compatibility */
+.yssf-focus-ring:focus-visible {
+  outline: none;
+  ring: 3px solid var(--color-accent-500);
+  ring-offset: 2px;
+}
