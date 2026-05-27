@@ -84,6 +84,11 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.listen(PORT, () => {
-  console.log(`YSSF Backend running on http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`YSSF Backend running on port ${PORT}`);
+});
+
+server.on('error', (err) => {
+  console.error('Server error:', err);
+  process.exit(1);
 });
