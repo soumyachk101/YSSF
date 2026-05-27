@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
@@ -18,6 +19,11 @@ const navLinks = [
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isAuthPage = pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth");
+
+  if (isAuthPage) return null;
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-primary-900/10">
