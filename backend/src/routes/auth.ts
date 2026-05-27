@@ -480,6 +480,53 @@ authRoutes.post("/google-mock", async (req, res) => {
   }
 });
 
+// POST /api/auth/google-supabase (real Google OAuth via Supabase)
+authRoutes.post("/google-supabase", async (req, res) => {
+  try {
+    const { email, name, avatarUrl } = z.object({
+      supabaseToken: z.string().min(1),
+      email: z.string().email(),
+      name: z.string().min(1),
+      avatarUrl: z.string().optional().nullable(),
+    }).parse(req.body);
+
+    // Find or create user
+    let user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          role: "volunteer",
+          emailVerified: true, // Google-verified emails are trusted
+          passwordHash: "", // No password for OAuth users
+        },
+      });
+    } else if (!user.emailVerified) {
+      // Mark existing user as verified if they sign in with Google
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      });
+    }
+
+    const token = await new SignJWT({ userId: user.id, role: user.role })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("2h")
+      .sign(SECRET);
+
+    res.json({
+      success: true,
+      user: { id: user.id, name: user.name, role: user.role },
+      token,
+    });
+  } catch (error) {
+    console.error("Error in Supabase Google auth:", error);
+    res.status(500).json({ error: "Google authentication failed" });
+  }
+});
+
 // POST /api/auth/signout
 authRoutes.post("/signout", (_req, res) => {
   res.json({ success: true });

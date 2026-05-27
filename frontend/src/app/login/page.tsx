@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { apiSignIn } from "@/lib/api";
+import { signInWithGoogle } from "@/lib/supabase";
 
 type AuthMethod = "email" | null;
 
@@ -147,12 +148,11 @@ export default function LoginPage() {
 
               {/* Google OAuth Button */}
               <button
-                disabled
-                className="w-full py-4 bg-white border-2 border-primary-200 text-primary-900 font-heading font-bold text-sm rounded-xl flex items-center justify-center gap-3 opacity-60 cursor-not-allowed relative"
+                onClick={() => signInWithGoogle()}
+                className="w-full py-4 bg-white border-2 border-primary-200 hover:border-primary-400 text-primary-900 font-heading font-bold text-sm rounded-xl transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-3 cursor-pointer"
               >
                 <Globe className="w-5 h-5" />
                 <span>Continue with Google</span>
-                <span className="absolute -top-2 -right-2 bg-accent-500 text-primary-900 text-[10px] font-bold px-2 py-0.5 rounded-full">Coming Soon</span>
               </button>
 
               {/* Divider */}
