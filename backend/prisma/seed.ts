@@ -1,9 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
-} as ConstructorParameters<typeof PrismaClient>[0]);
+const prisma = new PrismaClient();
 
 function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 10);
