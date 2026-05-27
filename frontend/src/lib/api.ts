@@ -49,6 +49,7 @@ export interface Event {
   createdAt: string | Date;
   updatedAt: string | Date;
   registrations?: EventRegistration[];
+  _count?: { registrations: number };
 }
 
 export interface Donation {
@@ -127,9 +128,24 @@ export interface UserProfile {
   profile?: { role?: string } | null;
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function setCookie(name: string, value: string, maxAge: number) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Strict`;
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("yssf-token") : null;
+  const token = getCookie(SESSION_COOKIE);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -140,45 +156,30 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
-    credentials: "include",
   });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(error.error || `HTTP ${res.status}`);
+    throw new Error(error.error || "Something went wrong");
   }
 
   return res.json();
 }
 
 function rememberSession(token: string) {
-  if (typeof window === "undefined") return;
-
-  localStorage.setItem("yssf-token", token);
-  document.cookie = `${SESSION_COOKIE}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  setCookie(SESSION_COOKIE, token, 60 * 60 * 2); // 2 hours
 }
 
 function forgetSession() {
-  if (typeof window === "undefined") return;
-
-  localStorage.removeItem("yssf-token");
-  document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+  deleteCookie(SESSION_COOKIE);
 }
 
 // ---- Auth ----
 
 export async function apiSignIn(email: string, password: string) {
-  const data = await apiFetch<{ success: boolean; user: { id: string; name: string; role: string }; token: string }>("/api/auth/login", {
+  const data = await apiFetch<{ success: boolean; user: { id: string; name: string; role: string }; token: string; emailVerified?: boolean }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
-  });
-  rememberSession(data.token);
-  return data;
-}
-
-export async function apiGoogleSignInMock() {
-  const data = await apiFetch<{ success: boolean; user: { id: string; name: string; role: string }; token: string }>("/api/auth/google-mock", {
-    method: "POST",
   });
   rememberSession(data.token);
   return data;
@@ -191,7 +192,7 @@ export async function apiSignUp(data: {
   role: string;
   password: string;
 }) {
-  const result = await apiFetch<{ success: boolean; user: { id: string; name: string; role: string }; token: string }>("/api/auth/register", {
+  const result = await apiFetch<{ success: boolean; user: { id: string; name: string; role: string }; token: string; verificationRequired?: boolean; message?: string }>("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -215,6 +216,32 @@ export async function apiGetMe() {
 export async function apiSignOut() {
   forgetSession();
   return apiFetch<{ success: boolean }>("/api/auth/signout", { method: "POST" });
+}
+
+// ---- Email Verification ----
+
+export async function apiSendVerification() {
+  return apiFetch<{ success: boolean; message: string }>("/api/auth/send-verification", {
+    method: "POST",
+  });
+}
+
+export async function apiVerifyEmail(email: string, code: string) {
+  const result = await apiFetch<{ success: boolean; message: string; user: { id: string; name: string; role: string }; token: string }>("/api/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+  if (result.token) {
+    rememberSession(result.token);
+  }
+  return result;
+}
+
+export async function apiResendVerification(email: string) {
+  return apiFetch<{ success: boolean; message: string }>("/api/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 // ---- Campaigns ----
@@ -330,4 +357,34 @@ export async function apiGetGalleryItems(category?: string) {
   if (category && category !== "All") params.set("category", category);
   const qs = params.toString();
   return apiFetch<GalleryItem[]>(`/api/dashboard/gallery${qs ? `?${qs}` : ""}`);
+}
+
+// ---- Verification ----
+
+export async function apiSendOTP(email: string) {
+  return apiFetch<{ success: boolean; message: string }>("/api/verify/send-otp", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function apiVerifyOTP(email: string, code: string) {
+  return apiFetch<{ success: boolean; message: string }>("/api/verify/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+}
+
+export async function apiSendVerificationLink(email: string) {
+  return apiFetch<{ success: boolean; message: string }>("/api/verify/send-link", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function apiVerifyLink(token: string) {
+  return apiFetch<{ success: boolean; message: string }>("/api/verify/verify-link", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
 }

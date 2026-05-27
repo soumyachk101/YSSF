@@ -15,17 +15,9 @@ const registerEventSchema = z.object({
 eventsRoutes.get("/", async (req, res) => {
   try {
     const { category, status, search } = req.query;
-
     const where: Record<string, unknown> = {};
-
-    if (category) {
-      where.category = category;
-    }
-
-    if (status) {
-      where.status = status;
-    }
-
+    if (category) where.category = category;
+    if (status) where.status = status;
     if (search) {
       where.OR = [
         { title: { contains: search as string } },
@@ -36,7 +28,9 @@ eventsRoutes.get("/", async (req, res) => {
     const events = await prisma.event.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { registrations: true },
+      include: {
+        _count: { select: { registrations: true } },
+      },
     });
 
     res.json(events);
@@ -51,7 +45,9 @@ eventsRoutes.get("/:id", async (req, res) => {
   try {
     const event = await prisma.event.findUnique({
       where: { slug: req.params.id },
-      include: { registrations: true },
+      include: {
+        _count: { select: { registrations: true } },
+      },
     });
 
     if (!event) {
@@ -73,7 +69,7 @@ eventsRoutes.post("/:id/register", async (req, res) => {
     const parseResult = registerEventSchema.safeParse(req.body);
 
     if (!parseResult.success) {
-      res.status(400).json({ error: parseResult.error.issues[0].message });
+      res.status(400).json({ error: "Invalid input" });
       return;
     }
 

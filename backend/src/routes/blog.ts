@@ -7,13 +7,8 @@ export const blogRoutes = Router();
 blogRoutes.get("/", async (req, res) => {
   try {
     const { category, search } = req.query;
-
     const where: Record<string, unknown> = { published: true };
-
-    if (category) {
-      where.category = category;
-    }
-
+    if (category) where.category = category;
     if (search) {
       where.OR = [
         { title: { contains: search as string } },
@@ -38,7 +33,7 @@ blogRoutes.get("/", async (req, res) => {
 blogRoutes.get("/:slug", async (req, res) => {
   try {
     const post = await prisma.blogPost.findUnique({
-      where: { slug: req.params.slug },
+      where: { slug: req.params.slug, published: true },
     });
 
     if (!post) {

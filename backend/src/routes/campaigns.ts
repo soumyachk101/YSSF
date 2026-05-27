@@ -7,13 +7,8 @@ export const campaignsRoutes = Router();
 campaignsRoutes.get("/", async (req, res) => {
   try {
     const { category, search } = req.query;
-
     const where: Record<string, unknown> = {};
-
-    if (category) {
-      where.category = category;
-    }
-
+    if (category) where.category = category;
     if (search) {
       where.OR = [
         { title: { contains: search as string } },
@@ -38,7 +33,11 @@ campaignsRoutes.get("/:id", async (req, res) => {
   try {
     const campaign = await prisma.campaign.findUnique({
       where: { slug: req.params.id },
-      include: { donations: true },
+      include: {
+        donations: {
+          select: { amount: true, createdAt: true },
+        },
+      },
     });
 
     if (!campaign) {

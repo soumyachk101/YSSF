@@ -14,6 +14,7 @@ model User {
   phone           String?
   passwordHash    String?
   role            String   @default("volunteer")
+  emailVerified   Boolean  @default(false)
   dob             String?
   location        String?
   skills          String?
@@ -34,6 +35,19 @@ model User {
 
   donations          Donation[]
   eventRegistrations EventRegistration[]
+  verifications      Verification[]
+}
+
+model Verification {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  type      String   // "email_otp" | "email_link"
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Campaign {

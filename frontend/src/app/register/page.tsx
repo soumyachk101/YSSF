@@ -9,21 +9,19 @@ import {
   Users,
   Heart,
   Building,
-  Shield,
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
   FileText,
-  KeyRound,
   Loader2,
   Mail,
 } from "lucide-react";
 import { apiSignUp } from "@/lib/api";
 
-type RoleType = "volunteer" | "donor" | "ngo" | "admin";
+type RoleType = "volunteer" | "donor" | "ngo";
 
 function parseRoleParam(role: string | null): RoleType {
-  return role === "donor" || role === "ngo" || role === "admin" ? role : "volunteer";
+  return role === "donor" || role === "ngo" ? role : "volunteer";
 }
 
 function RegisterFormContent() {
@@ -71,15 +69,6 @@ function RegisterFormContent() {
   const [nPassword, setNPassword] = useState("");
   const [nConfirmPassword, setNConfirmPassword] = useState("");
 
-  // Form Fields - Admin
-  const [aName, setAName] = useState("");
-  const [aEmail, setAEmail] = useState("");
-  const [aEmployeeId, setAEmployeeId] = useState("");
-  const [aRoleLevel, setARoleLevel] = useState("Moderator");
-  const [aMfaSecret, setAMfaSecret] = useState("");
-  const [aPassword, setAPassword] = useState("");
-  const [aConfirmPassword, setAConfirmPassword] = useState("");
-
   // Checkboxes
   const [agreeTerms, setAgreeTerms] = useState<boolean>(false);
 
@@ -108,10 +97,9 @@ function RegisterFormContent() {
     // Get role-specific values
     let name = "", email = "", phone = "", password = "", confirmPassword = "";
     const roleMap: Record<RoleType, string> = {
-      volunteer: "VOLUNTEER",
-      donor: "DONOR",
-      ngo: "NGO_PARTNER",
-      admin: "ADMIN",
+      volunteer: "volunteer",
+      donor: "donor",
+      ngo: "ngo_partner",
     };
 
     if (activeTab === "volunteer") {
@@ -120,8 +108,6 @@ function RegisterFormContent() {
       name = dName; email = dEmail; phone = dPhone || ""; password = dPassword; confirmPassword = dConfirmPassword;
     } else if (activeTab === "ngo") {
       name = nContactPerson; email = nEmail; phone = ""; password = nPassword; confirmPassword = nConfirmPassword;
-    } else if (activeTab === "admin") {
-      name = aName; email = aEmail; phone = ""; password = aPassword; confirmPassword = aConfirmPassword;
     }
 
     if (password !== confirmPassword) {
@@ -227,17 +213,6 @@ function RegisterFormContent() {
           <span>NGO Partner</span>
         </button>
 
-        <button
-          onClick={() => { setActiveTab("admin"); setIsSuccess(false); }}
-          className={`py-3 rounded-xl font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 border transition-all ${
-            activeTab === "admin"
-              ? "bg-slate-700 border-slate-700 text-white shadow-md cursor-pointer"
-              : "bg-transparent border-transparent text-primary-900/80 hover:bg-white/50 cursor-pointer"
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          <span>Admin</span>
-        </button>
       </div>
 
       {/* Tab Contents */}
@@ -282,7 +257,6 @@ function RegisterFormContent() {
                   {activeTab === "volunteer" && `Welcome to the team! We have registered you as a volunteer. You will receive updates about upcoming drives.`}
                   {activeTab === "donor" && `Thank you for registering! You are now part of our donor ecosystem. We will coordinate details regarding tax certificates.`}
                   {activeTab === "ngo" && `Thank you! Your NGO registration request has been submitted. Our compliance team will audit the license number and contact you.`}
-                  {activeTab === "admin" && `Internal Employee profile generated successfully. Please check your system email for standard 2FA setup.`}
                 </p>
               )}
 
@@ -818,134 +792,6 @@ function RegisterFormContent() {
             </div>
           )}
 
-          {/* ADMIN TAB */}
-          {activeTab === "admin" && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-primary-100">
-                <div className="p-2 rounded-xl bg-slate-700/10 text-slate-700">
-                  <Shield className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-heading font-extrabold text-xl text-primary-900">Admin Account Provisioning</h3>
-                  <p className="font-sans text-xs text-foreground/75 mt-0.5">Internal employees must enter reference IDs to setup role privileges.</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label htmlFor="admin-name" className="font-heading font-semibold text-xs text-primary-900">Full Name</label>
-                  <input
-                    id="admin-name"
-                    type="text"
-                    required
-                    value={aName}
-                    onChange={(e) => setAName(e.target.value)}
-                    placeholder="e.g. Priyanjali Sen"
-                    className="w-full px-4 py-3 rounded-xl border border-primary-200 font-sans text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="admin-id" className="font-heading font-semibold text-xs text-primary-900">Employee Reference / Reference ID</label>
-                  <input
-                    id="admin-id"
-                    type="text"
-                    required
-                    value={aEmployeeId}
-                    onChange={(e) => setAEmployeeId(e.target.value)}
-                    placeholder="e.g. YSSF-EMP-2026-08"
-                    className="w-full px-4 py-3 rounded-xl border border-primary-200 font-sans text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="admin-email" className="font-heading font-semibold text-xs text-primary-900">Work Email Address</label>
-                  <input
-                    id="admin-email"
-                    type="email"
-                    required
-                    value={aEmail}
-                    onChange={(e) => setAEmail(e.target.value)}
-                    placeholder="e.g. priyanjali@youthsakti.org"
-                    className="w-full px-4 py-3 rounded-xl border border-primary-200 font-sans text-sm focus:outline-none focus:ring-slate-500 text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="admin-level" className="font-heading font-semibold text-xs text-primary-900">Role Privilege Level</label>
-                  <select
-                    id="admin-level"
-                    value={aRoleLevel}
-                    onChange={(e) => setARoleLevel(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-primary-200 bg-white font-sans text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-800"
-                  >
-                    <option value="Super Admin">Super Admin (Full DB & Security control)</option>
-                    <option value="Moderator">Moderator (Review comments & event applications)</option>
-                    <option value="Financial Reviewer">Financial Auditor (Audit donation receipts)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* MFA Setup Simulation */}
-              <div className="p-4 bg-slate-100/50 rounded-2xl border border-slate-200 space-y-4">
-                <h4 className="font-heading font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                  <KeyRound className="w-4 h-4 text-slate-700" /> Two-Factor Authentication (2FA) Setup
-                </h4>
-                <p className="font-sans text-[11px] text-slate-700 leading-normal">
-                  Admins are required by YSSF security protocols to configure MFA. To simulate, click below to generate a secret key token:
-                </p>
-                <div className="flex gap-4 items-center">
-                  {aMfaSecret ? (
-                    <span className="font-mono text-xs bg-slate-200 border border-slate-300 text-slate-900 px-3 py-1.5 rounded-lg select-all">
-                      Secret Token: {aMfaSecret} (Scan in Authenticator)
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setAMfaSecret("K3MD92JDNF72H18S")}
-                      className="px-4 py-2 bg-slate-700 text-white font-heading font-semibold text-xs rounded-xl hover:bg-slate-600 transition-colors shadow-sm cursor-pointer"
-                    >
-                      Generate Secret Token
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Password Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label htmlFor="admin-password" className="font-heading font-semibold text-xs text-primary-900">Password</label>
-                  <input
-                    id="admin-password"
-                    type="password"
-                    required
-                    value={aPassword}
-                    onChange={(e) => setAPassword(e.target.value)}
-                    placeholder="Min. 8 characters"
-                    className={`w-full px-4 py-3 rounded-xl border font-sans text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 text-foreground ${
-                      fieldErrors.password ? "border-red-400" : "border-primary-200"
-                    }`}
-                  />
-                  {fieldErrors.password && (
-                    <p className="font-sans text-xs text-red-500 mt-1">{fieldErrors.password[0]}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="admin-confirm-password" className="font-heading font-semibold text-xs text-primary-900">Confirm Password</label>
-                  <input
-                    id="admin-confirm-password"
-                    type="password"
-                    required
-                    value={aConfirmPassword}
-                    onChange={(e) => setAConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
-                    className="w-full px-4 py-3 rounded-xl border border-primary-200 font-sans text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 text-foreground"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Privacy Checkbox */}
           <div className="border-t border-primary-100 pt-6 flex items-start gap-3">
             <input
@@ -971,8 +817,6 @@ function RegisterFormContent() {
               activeTab === "donor" ? "bg-accent-600 hover:bg-accent-700 shadow-accent-600/10 hover:shadow-accent-600/20" : ""
             } ${
               activeTab === "ngo" ? "bg-primary-700 hover:bg-primary-600 shadow-primary-700/10 hover:shadow-primary-700/20" : ""
-            } ${
-              activeTab === "admin" ? "bg-slate-800 hover:bg-slate-700 shadow-slate-800/10 hover:shadow-slate-800/20" : ""
             }`}
           >
             {loading ? (

@@ -4,6 +4,18 @@ import { getUserFromRequest } from "../lib/auth.js";
 
 export const dashboardRoutes = Router();
 
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  phone: true,
+  location: true,
+  skills: true,
+  availability: true,
+  createdAt: true,
+};
+
 // GET /api/dashboard/stats
 dashboardRoutes.get("/stats", async (req, res) => {
   try {
@@ -15,7 +27,8 @@ dashboardRoutes.get("/stats", async (req, res) => {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      include: {
+      select: {
+        ...userSelect,
         donations: { include: { campaign: true }, orderBy: { createdAt: "desc" } },
         eventRegistrations: { include: { event: true } },
       },
@@ -97,6 +110,7 @@ dashboardRoutes.get("/admin-stats", async (req, res) => {
     const recentUsers = await prisma.user.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
+      select: userSelect,
     });
 
     res.json({
@@ -127,7 +141,6 @@ dashboardRoutes.get("/users", async (req, res) => {
     }
 
     const { role, search } = req.query;
-
     const where: Record<string, unknown> = {};
 
     if (role) {
@@ -144,6 +157,7 @@ dashboardRoutes.get("/users", async (req, res) => {
     const users = await prisma.user.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      select: userSelect,
     });
 
     res.json(users);

@@ -3,17 +3,24 @@ import { SignJWT } from "jose";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { SECRET } from "../lib/auth.js";
+import { SECRET, getUserFromRequest } from "../lib/auth.js";
 
 export const authRoutes = Router();
 
-// Zod schemas for input validation
+const PUBLIC_ROLES = ["volunteer", "donor", "ngo_partner"] as const;
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 const registerSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email format"),
   phone: z.string().optional().nullable(),
-  role: z.string().default("volunteer"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(PUBLIC_ROLES).default("volunteer"),
+  password: z.string().min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
 });
 
 const loginSchema = z.object({
@@ -21,12 +28,19 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const verifyEmailSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  code: z.string().length(6, "OTP must be 6 digits"),
+});
+
 const registerFullSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email format"),
   phone: z.string().optional().nullable(),
-  role: z.string(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(PUBLIC_ROLES),
+  password: z.string().min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
   dob: z.string().optional().nullable(),
   location: z.string().optional().nullable(),
   skills: z.string().optional().nullable(),
@@ -49,7 +63,7 @@ authRoutes.post("/register", async (req, res) => {
   try {
     const parseResult = registerSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(400).json({ error: parseResult.error.issues[0].message });
+      res.status(400).json({ error: "Invalid input" });
       return;
     }
 
@@ -61,33 +75,199 @@ authRoutes.post("/register", async (req, res) => {
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
         name,
         email,
         phone: phone || null,
-        role: role || "volunteer",
+        role,
         dob: "",
         location: "",
         passwordHash: hashedPassword,
       },
     });
 
-    const token = await new SignJWT({ userId: user.id })
+    // Generate and send OTP
+    const otp = generateOTP();
+    await prisma.verification.create({
+      data: {
+        userId: user.id,
+        code: otp,
+        type: "email_otp",
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      },
+    });
+
+    // TODO: Send OTP via email service (SendGrid, nodemailer, etc.)
+    console.log(`[EMAIL VERIFICATION] OTP for ${email}: ${otp}`);
+
+    const token = await new SignJWT({ userId: user.id, role: user.role })
       .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("7d")
+      .setExpirationTime("2h")
       .sign(SECRET);
 
     res.status(201).json({
       success: true,
       user: { id: user.id, name: user.name, role: user.role },
       token,
+      verificationRequired: true,
+      message: "OTP sent to your email. Please verify to continue.",
     });
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).json({ error: "Failed to register user" });
+  }
+});
+
+// POST /api/auth/send-verification
+authRoutes.post("/send-verification", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (user.emailVerified) {
+      res.status(400).json({ error: "Email already verified" });
+      return;
+    }
+
+    // Invalidate any existing OTPs
+    await prisma.verification.updateMany({
+      where: { userId: user.id, type: "email_otp", used: false },
+      data: { used: true },
+    });
+
+    const otp = generateOTP();
+    await prisma.verification.create({
+      data: {
+        userId: user.id,
+        code: otp,
+        type: "email_otp",
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    // TODO: Send OTP via email service
+    console.log(`[EMAIL VERIFICATION] OTP for ${user.email}: ${otp}`);
+
+    res.json({ success: true, message: "OTP sent to your email" });
+  } catch (error) {
+    console.error("Error sending verification:", error);
+    res.status(500).json({ error: "Failed to send verification code" });
+  }
+});
+
+// POST /api/auth/verify-email
+authRoutes.post("/verify-email", async (req, res) => {
+  try {
+    const parseResult = verifyEmailSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+
+    const { email, code } = parseResult.data;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.emailVerified) {
+      res.status(400).json({ error: "Email already verified" });
+      return;
+    }
+
+    const verification = await prisma.verification.findFirst({
+      where: {
+        userId: user.id,
+        code,
+        type: "email_otp",
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!verification) {
+      res.status(400).json({ error: "Invalid or expired OTP" });
+      return;
+    }
+
+    // Mark verification as used and user as verified
+    await prisma.$transaction([
+      prisma.verification.update({
+        where: { id: verification.id },
+        data: { used: true },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      }),
+    ]);
+
+    const token = await new SignJWT({ userId: user.id, role: user.role })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("2h")
+      .sign(SECRET);
+
+    res.json({
+      success: true,
+      message: "Email verified successfully",
+      user: { id: user.id, name: user.name, role: user.role },
+      token,
+    });
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    res.status(500).json({ error: "Failed to verify email" });
+  }
+});
+
+// POST /api/auth/resend-verification
+authRoutes.post("/resend-verification", async (req, res) => {
+  try {
+    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Don't reveal if user exists
+      res.json({ success: true, message: "If an account exists, OTP has been sent" });
+      return;
+    }
+
+    if (user.emailVerified) {
+      res.status(400).json({ error: "Email already verified" });
+      return;
+    }
+
+    // Invalidate existing OTPs
+    await prisma.verification.updateMany({
+      where: { userId: user.id, type: "email_otp", used: false },
+      data: { used: true },
+    });
+
+    const otp = generateOTP();
+    await prisma.verification.create({
+      data: {
+        userId: user.id,
+        code: otp,
+        type: "email_otp",
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    // TODO: Send OTP via email service
+    console.log(`[EMAIL VERIFICATION] OTP for ${email}: ${otp}`);
+
+    res.json({ success: true, message: "If an account exists, OTP has been sent" });
+  } catch (error) {
+    console.error("Error resending verification:", error);
+    res.status(500).json({ error: "Failed to resend verification code" });
   }
 });
 
@@ -96,7 +276,7 @@ authRoutes.post("/login", async (req, res) => {
   try {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(400).json({ error: parseResult.error.issues[0].message });
+      res.status(400).json({ error: "Invalid input" });
       return;
     }
 
@@ -114,15 +294,16 @@ authRoutes.post("/login", async (req, res) => {
       return;
     }
 
-    const token = await new SignJWT({ userId: user.id })
+    const token = await new SignJWT({ userId: user.id, role: user.role })
       .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("7d")
+      .setExpirationTime("2h")
       .sign(SECRET);
 
     res.json({
       success: true,
       user: { id: user.id, name: user.name, role: user.role },
       token,
+      emailVerified: user.emailVerified,
     });
   } catch (error) {
     console.error("Error logging in:", error);
@@ -147,7 +328,7 @@ authRoutes.get("/me", async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, role: true, emailVerified: true },
     });
 
     if (!user) {
@@ -166,7 +347,7 @@ authRoutes.post("/register-full", async (req, res) => {
   try {
     const parseResult = registerFullSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(400).json({ error: parseResult.error.issues[0].message });
+      res.status(400).json({ error: "Invalid input" });
       return;
     }
 
@@ -178,7 +359,7 @@ authRoutes.post("/register-full", async (req, res) => {
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const userData: Record<string, unknown> = {
       name,
@@ -192,7 +373,6 @@ authRoutes.post("/register-full", async (req, res) => {
       volunteer: ["dob", "location", "skills", "availability", "emergencyName", "emergencyPhone"],
       donor: ["panTaxId", "preferredCauses"],
       ngo_partner: ["orgName", "regNumber", "website", "address", "mission", "preferredCauses"],
-      admin: ["employeeId", "roleLevel"],
     };
 
     const allowedFields = roleFields[role] || [];
@@ -205,15 +385,31 @@ authRoutes.post("/register-full", async (req, res) => {
 
     const user = await prisma.user.create({ data: userData as never });
 
-    const token = await new SignJWT({ userId: user.id })
+    // Generate and send OTP
+    const otp = generateOTP();
+    await prisma.verification.create({
+      data: {
+        userId: user.id,
+        code: otp,
+        type: "email_otp",
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    // TODO: Send OTP via email service
+    console.log(`[EMAIL VERIFICATION] OTP for ${email}: ${otp}`);
+
+    const token = await new SignJWT({ userId: user.id, role: user.role })
       .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("7d")
+      .setExpirationTime("2h")
       .sign(SECRET);
 
     res.status(201).json({
       success: true,
       user: { id: user.id, name: user.name, role: user.role },
       token,
+      verificationRequired: true,
+      message: "OTP sent to your email. Please verify to continue.",
     });
   } catch (error) {
     console.error("Error creating user:", error);
@@ -221,8 +417,13 @@ authRoutes.post("/register-full", async (req, res) => {
   }
 });
 
-// POST /api/auth/google-mock
+// POST /api/auth/google-mock (dev only)
 authRoutes.post("/google-mock", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   try {
     const email = "google-volunteer@yssf.org";
     let user = await prisma.user.findUnique({ where: { email } });
@@ -238,14 +439,14 @@ authRoutes.post("/google-mock", async (req, res) => {
           location: "Kolkata, WB",
           skills: "Environment, Community Services",
           availability: "Weekends",
-          passwordHash: "", // Google sign in has no password hash
+          passwordHash: "",
         },
       });
     }
 
-    const token = await new SignJWT({ userId: user.id })
+    const token = await new SignJWT({ userId: user.id, role: user.role })
       .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("7d")
+      .setExpirationTime("2h")
       .sign(SECRET);
 
     res.json({
