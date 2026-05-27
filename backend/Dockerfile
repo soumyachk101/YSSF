@@ -19,4 +19,4 @@ USER node
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npm start"]
