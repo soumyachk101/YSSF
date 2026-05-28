@@ -65,7 +65,7 @@ verifyRoutes.post("/send-otp", async (req, res) => {
     });
 
     // Send OTP email
-    await sendOTPEmail(email, otp).catch((err) =>
+    sendOTPEmail(email, otp).catch((err) =>
       console.error("Error sending OTP email:", err)
     );
 
@@ -173,7 +173,7 @@ verifyRoutes.post("/send-link", async (req, res) => {
 
     const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${token}`;
     // Send verification link email
-    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+    sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
       console.error("Error sending verification link email:", err)
     );
 

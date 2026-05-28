@@ -104,9 +104,9 @@ authRoutes.post("/register", async (req, res) => {
       },
     });
 
-    // Send Verification email
+    // Send Verification email (fired asynchronously in background)
     const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
-    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+    sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
       console.error("Error sending verification email:", err)
     );
 
@@ -159,7 +159,7 @@ authRoutes.post("/send-verification", async (req, res) => {
     });
 
     const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
-    await sendVerificationLinkEmail(user.email, verifyUrl).catch((err) =>
+    sendVerificationLinkEmail(user.email, verifyUrl).catch((err) =>
       console.error("Error sending verification email:", err)
     );
 
@@ -271,7 +271,7 @@ authRoutes.post("/resend-verification", async (req, res) => {
     });
 
     const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
-    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+    sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
       console.error("Error sending verification email:", err)
     );
 
@@ -424,9 +424,9 @@ authRoutes.post("/register-full", async (req, res) => {
       },
     });
 
-    // Send Verification email
+    // Send Verification email (fired asynchronously in background)
     const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
-    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+    sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
       console.error("Error sending verification email:", err)
     );
 
