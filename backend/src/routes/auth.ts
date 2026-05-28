@@ -5,7 +5,8 @@ import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { SECRET, getUserFromRequest } from "../lib/auth.js";
-import { sendOTPEmail } from "../lib/email.js";
+import { sendVerificationLinkEmail } from "../lib/email.js";
+
 
 
 export const authRoutes = Router();
@@ -92,22 +93,22 @@ authRoutes.post("/register", async (req, res) => {
       },
     });
 
-    // Generate and send OTP
-    const otp = generateOTP();
+    // Generate and send Verification Link
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     await prisma.verification.create({
       data: {
         userId: user.id,
-        code: otp,
-        type: "email_otp",
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        code: verificationToken,
+        type: "email_link",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       },
     });
 
-    // Send OTP email
-    await sendOTPEmail(email, otp).catch((err) =>
-      console.error("Error sending OTP email:", err)
+    // Send Verification email
+    const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
+    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+      console.error("Error sending verification email:", err)
     );
-
 
     const token = await new SignJWT({ userId: user.id, role: user.role })
       .setProtectedHeader({ alg: "HS256" })
@@ -119,7 +120,7 @@ authRoutes.post("/register", async (req, res) => {
       user: { id: user.id, name: user.name, role: user.role },
       token,
       verificationRequired: true,
-      message: "OTP sent to your email. Please verify to continue.",
+      message: "Verification link sent to your email. Please verify to continue.",
     });
   } catch (error) {
     console.error("Error registering user:", error);
@@ -141,29 +142,28 @@ authRoutes.post("/send-verification", async (req, res) => {
       return;
     }
 
-    // Invalidate any existing OTPs
+    // Invalidate any existing verification links
     await prisma.verification.updateMany({
-      where: { userId: user.id, type: "email_otp", used: false },
+      where: { userId: user.id, type: "email_link", used: false },
       data: { used: true },
     });
 
-    const otp = generateOTP();
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     await prisma.verification.create({
       data: {
         userId: user.id,
-        code: otp,
-        type: "email_otp",
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        code: verificationToken,
+        type: "email_link",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
-    // Send OTP email
-    await sendOTPEmail(user.email, otp).catch((err) =>
-      console.error("Error sending OTP email:", err)
+    const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
+    await sendVerificationLinkEmail(user.email, verifyUrl).catch((err) =>
+      console.error("Error sending verification email:", err)
     );
 
-
-    res.json({ success: true, message: "OTP sent to your email" });
+    res.json({ success: true, message: "Verification link sent to your email" });
   } catch (error) {
     console.error("Error sending verification:", error);
     res.status(500).json({ error: "Failed to send verification code" });
@@ -254,29 +254,28 @@ authRoutes.post("/resend-verification", async (req, res) => {
       return;
     }
 
-    // Invalidate existing OTPs
+    // Invalidate existing verification links
     await prisma.verification.updateMany({
-      where: { userId: user.id, type: "email_otp", used: false },
+      where: { userId: user.id, type: "email_link", used: false },
       data: { used: true },
     });
 
-    const otp = generateOTP();
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     await prisma.verification.create({
       data: {
         userId: user.id,
-        code: otp,
-        type: "email_otp",
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        code: verificationToken,
+        type: "email_link",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
-    // Send OTP email
-    await sendOTPEmail(email, otp).catch((err) =>
-      console.error("Error sending OTP email:", err)
+    const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
+    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+      console.error("Error sending verification email:", err)
     );
 
-
-    res.json({ success: true, message: "If an account exists, OTP has been sent" });
+    res.json({ success: true, message: "If an account exists, verification link has been sent" });
   } catch (error) {
     console.error("Error resending verification:", error);
     res.status(500).json({ error: "Failed to resend verification code" });
@@ -414,22 +413,22 @@ authRoutes.post("/register-full", async (req, res) => {
 
     const user = await prisma.user.create({ data: userData as never });
 
-    // Generate and send OTP
-    const otp = generateOTP();
+    // Generate and send Verification Link
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     await prisma.verification.create({
       data: {
         userId: user.id,
-        code: otp,
-        type: "email_otp",
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        code: verificationToken,
+        type: "email_link",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
-    // Send OTP email
-    await sendOTPEmail(email, otp).catch((err) =>
-      console.error("Error sending OTP email:", err)
+    // Send Verification email
+    const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify?token=${verificationToken}`;
+    await sendVerificationLinkEmail(email, verifyUrl).catch((err) =>
+      console.error("Error sending verification email:", err)
     );
-
 
     const token = await new SignJWT({ userId: user.id, role: user.role })
       .setProtectedHeader({ alg: "HS256" })
@@ -441,7 +440,7 @@ authRoutes.post("/register-full", async (req, res) => {
       user: { id: user.id, name: user.name, role: user.role },
       token,
       verificationRequired: true,
-      message: "OTP sent to your email. Please verify to continue.",
+      message: "Verification link sent to your email. Please verify to continue.",
     });
   } catch (error) {
     console.error("Error creating user:", error);

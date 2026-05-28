@@ -295,10 +295,8 @@ function RegisterFormContent() {
       await apiResendVerification(email);
       setTimer(60);
       setCanResend(false);
-      setOtp(Array(6).fill(""));
-      otpRefs.current[0]?.focus();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to resend code";
+      const message = err instanceof Error ? err.message : "Failed to resend link";
       setOtpError(message);
     }
   };
@@ -992,7 +990,7 @@ function RegisterFormContent() {
               </motion.div>
             )}
 
-            {/* STEP 3: OTP Verification */}
+            {/* STEP 3: Verification Link Sent */}
             {step === 3 && (
               <motion.div
                 key="step-3"
@@ -1000,83 +998,60 @@ function RegisterFormContent() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
-                className="space-y-6 flex-grow flex flex-col justify-center"
+                className="space-y-6 flex-grow flex flex-col justify-center text-center py-6"
               >
-                {/* Header */}
-                <div>
-                  <h1 className="font-heading font-black text-2xl text-primary-900 leading-none tracking-tight mb-2">
+                {/* Header & Icon */}
+                <div className="space-y-4">
+                  <div className="w-16 h-16 bg-primary-900/10 text-primary-900 rounded-full flex items-center justify-center mx-auto">
+                    <Mail className="w-8 h-8 animate-bounce" />
+                  </div>
+                  <h1 className="font-heading font-black text-2xl text-primary-900 leading-none tracking-tight">
                     Verify Your Email
                   </h1>
-                  <p className="font-sans text-xs text-primary-900/60 font-semibold leading-relaxed">
-                    We have sent a 6-digit verification code to <span className="text-primary-900 font-bold">{email}</span>. Please enter it to activate your account.
+                  <p className="font-sans text-sm text-primary-900/70 font-semibold leading-relaxed max-w-sm mx-auto">
+                    We have sent a verification link to <span className="text-primary-900 font-extrabold">{email}</span>. Please check your inbox and click the link to activate your account.
                   </p>
                 </div>
 
-                {/* OTP Error Display */}
+                {/* Error Display */}
                 {otpError && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5"
+                    className="p-3 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5 text-left"
                   >
                     <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                     <p className="font-sans text-xs text-red-700 leading-relaxed font-semibold">{otpError}</p>
                   </motion.div>
                 )}
 
-                {/* OTP Form */}
-                <form onSubmit={handleVerifyOtp} className="space-y-6">
-                  {/* Inputs Grid */}
-                  <div className="flex justify-between gap-2.5">
-                    {otp.map((digit, index) => (
-                      <input
-                        key={index}
-                        ref={(el) => {
-                          otpRefs.current[index] = el;
-                        }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={1}
-                        required
-                        value={digit}
-                        onChange={(e) => handleOtpChange(e.target, index)}
-                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
-                        onPaste={index === 0 ? handleOtpPaste : undefined}
-                        className="w-12 h-14 text-center bg-surface-100/30 border border-primary-200 focus:border-accent-500 rounded-xl text-lg font-heading font-black focus:outline-none focus:ring-2 focus:ring-accent-500/20 text-foreground transition-all shadow-sm"
-                      />
-                    ))}
-                  </div>
-
-                  {/* Verify Action Button */}
+                {/* Resend and Actions */}
+                <div className="space-y-4 pt-4">
                   <button
-                    type="submit"
-                    disabled={otp.some((d) => !d) || otpLoading}
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={!canResend}
                     className="w-full py-3.5 bg-primary-900 hover:bg-primary-800 disabled:bg-primary-900/50 text-white font-heading font-bold text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                   >
-                    {otpLoading ? (
-                      <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                    ) : (
-                      "Verify & Activate Profile"
-                    )}
+                    <span>Resend Verification Link</span>
                   </button>
-                </form>
 
-                {/* Resend Options */}
-                <div className="text-center">
-                  {canResend ? (
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      className="font-heading font-extrabold text-xs text-accent-600 hover:text-accent-700 underline cursor-pointer"
+                  <div className="text-center">
+                    {!canResend && (
+                      <p className="font-sans text-xs text-primary-900/50 font-semibold">
+                        Resend link in <span className="font-bold text-primary-900">{timer}s</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <Link
+                      href="/login"
+                      className="font-heading font-bold text-xs text-primary-900 hover:text-primary-800 underline"
                     >
-                      Resend Code
-                    </button>
-                  ) : (
-                    <p className="font-sans text-xs text-primary-900/50 font-semibold">
-                      Resend code in <span className="font-bold text-primary-900">{timer}s</span>
-                    </p>
-                  )}
+                      Back to Sign In
+                    </Link>
+                  </div>
                 </div>
               </motion.div>
             )}
