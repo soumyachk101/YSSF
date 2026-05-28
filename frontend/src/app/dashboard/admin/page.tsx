@@ -96,15 +96,20 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([apiGetAdminStats(), apiGetAllUsers()]).then(([adminStats, allUsers]) => {
-      if (!adminStats) {
-        router.push("/login");
-        return;
-      }
-      setStats(adminStats);
-      setUsers(allUsers);
-      setLoading(false);
-    });
+    Promise.all([apiGetAdminStats(), apiGetAllUsers()])
+      .then(([adminStats, allUsers]) => {
+        if (!adminStats) {
+          router.push("/login");
+          return;
+        }
+        setStats(adminStats);
+        setUsers(allUsers);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading admin dashboard stats:", err);
+        router.push("/login?error=load_failed");
+      });
   }, [router]);
 
   if (loading) return <AdminSkeleton />;

@@ -76,15 +76,20 @@ export default function DonorDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([apiGetDashboardStats(), apiGetDonationHistory()]).then(([stats, history]) => {
-      if (!stats) {
-        router.push("/login");
-        return;
-      }
-      setDashData(stats);
-      setDonations(history);
-      setLoading(false);
-    });
+    Promise.all([apiGetDashboardStats(), apiGetDonationHistory()])
+      .then(([stats, history]) => {
+        if (!stats) {
+          router.push("/login");
+          return;
+        }
+        setDashData(stats);
+        setDonations(history);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading donor dashboard stats:", err);
+        router.push("/login?error=load_failed");
+      });
   }, [router]);
 
   if (loading) return <DonorSkeleton />;

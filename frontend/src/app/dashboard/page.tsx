@@ -90,10 +90,15 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiGetDashboardStats().then((result) => {
-      setData(result);
-      setLoading(false);
-    });
+    apiGetDashboardStats()
+      .then((result) => {
+        setData(result);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading general dashboard stats:", err);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) return <DashboardSkeleton />;

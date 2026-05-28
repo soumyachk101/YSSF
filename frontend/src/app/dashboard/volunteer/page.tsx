@@ -68,14 +68,19 @@ export default function VolunteerDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiGetDashboardStats().then((result) => {
-      if (!result) {
-        router.push("/login");
-        return;
-      }
-      setData(result);
-      setLoading(false);
-    });
+    apiGetDashboardStats()
+      .then((result) => {
+        if (!result) {
+          router.push("/login");
+          return;
+        }
+        setData(result);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading volunteer dashboard stats:", err);
+        router.push("/login?error=load_failed");
+      });
   }, [router]);
 
   if (loading) return <VolunteerSkeleton />;
